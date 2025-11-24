@@ -385,6 +385,7 @@ class Session(SessionRedirectMixin):
         "stream",
         "trust_env",
         "max_redirects",
+        "_host_policy_mgr",  # 添加新属性
     ]
 
     def __init__(self):
@@ -454,6 +455,55 @@ class Session(SessionRedirectMixin):
     def __exit__(self, *args):
         self.close()
 
+    # 添加新的API方法
+    def enable_host_policies(self, enable_request_id=True, window_size=50):
+        """Enable host-level policies and statistics.
+        
+        Args:
+            enable_request_id: Whether to inject X-Request-ID headers
+            window_size: Size of the sliding window for statistics
+        """
+        self._host_policy_mgr = HostPolicyManager(enable_request_id, window_size)
+
+
+    def disable_host_policies(self):
+        """Disable host-level policies and statistics."""
+        self._host_policy_mgr = None
+
+
+    def configure_host_policy(self, host, headers={}, override=False, protected_headers=None):
+        """Configure a policy for a specific host.
+        
+        Args:
+            host: Hostname to configure
+            headers: Default headers for this host
+            override: Whether to override existing request headers
+            protected_headers: Headers that cannot be overridden
+        """
+        if self._host_policy_mgr is not None:
+            self._host_policy_mgr.configure_policy(host, headers, override, protected_headers)
+
+
+    def get_host_stats(self, host):
+        """Get statistics for a specific host.
+        
+        Args:
+            host: Hostname to get statistics for
+            
+        Returns:
+            Dictionary containing request statistics
+        """
+        if self._host_policy_mgr is not None:
+            return self._host_policy_mgr.get_stats(host)
+        return {
+            "count": 0,
+            "avg_ms": 0.0,
+            "p95_ms": 0.0,
+            "error_rate": 0.0,
+            "buckets": {"2xx": 0, "4xx": 0, "5xx": 0, "error": 0, "other": 0}
+        }
+
+    # 修改prepare_request方法，添加主机策略处理
     def prepare_request(self, request):
         """Constructs a :class:`PreparedRequest <PreparedRequest>` for
         transmission and returns it. The :class:`PreparedRequest` has settings
@@ -495,181 +545,17 @@ class Session(SessionRedirectMixin):
             cookies=merged_cookies,
             hooks=merge_hooks(request.hooks, self.hooks),
         )
+
+        # Apply host policies if enabled
+        if self._host_policy_mgr is not None:
+            parsed_url = urlparse(p.url)
+            host = parsed_url.hostname
+            if host:
+                p.headers = self._host_policy_mgr.process_request(host, p.headers)
+
         return p
 
-    def request(
-        self,
-        method,
-        url,
-        params=None,
-        data=None,
-        headers=None,
-        cookies=None,
-        files=None,
-        auth=None,
-        timeout=None,
-        allow_redirects=True,
-        proxies=None,
-        hooks=None,
-        stream=None,
-        verify=None,
-        cert=None,
-        json=None,
-    ):
-        """Constructs a :class:`Request <Request>`, prepares it and sends it.
-        Returns :class:`Response <Response>` object.
-
-        :param method: method for the new :class:`Request` object.
-        :param url: URL for the new :class:`Request` object.
-        :param params: (optional) Dictionary or bytes to be sent in the query
-            string for the :class:`Request`.
-        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
-            object to send in the body of the :class:`Request`.
-        :param json: (optional) json to send in the body of the
-            :class:`Request`.
-        :param headers: (optional) Dictionary of HTTP Headers to send with the
-            :class:`Request`.
-        :param cookies: (optional) Dict or CookieJar object to send with the
-            :class:`Request`.
-        :param files: (optional) Dictionary of ``'filename': file-like-objects``
-            for multipart encoding upload.
-        :param auth: (optional) Auth tuple or callable to enable
-            Basic/Digest/Custom HTTP Auth.
-        :param timeout: (optional) How many seconds to wait for the server to send
-            data before giving up, as a float, or a :ref:`(connect timeout,
-            read timeout) <timeouts>` tuple.
-        :type timeout: float or tuple
-        :param allow_redirects: (optional) Set to True by default.
-        :type allow_redirects: bool
-        :param proxies: (optional) Dictionary mapping protocol or protocol and
-            hostname to the URL of the proxy.
-        :param hooks: (optional) Dictionary mapping hook name to one event or
-            list of events, event must be callable.
-        :param stream: (optional) whether to immediately download the response
-            content. Defaults to ``False``.
-        :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``. When set to
-            ``False``, requests will accept any TLS certificate presented by
-            the server, and will ignore hostname mismatches and/or expired
-            certificates, which will make your application vulnerable to
-            man-in-the-middle (MitM) attacks. Setting verify to ``False``
-            may be useful during local development or testing.
-        :param cert: (optional) if String, path to ssl client cert file (.pem).
-            If Tuple, ('cert', 'key') pair.
-        :rtype: requests.Response
-        """
-        # Create the Request.
-        req = Request(
-            method=method.upper(),
-            url=url,
-            headers=headers,
-            files=files,
-            data=data or {},
-            json=json,
-            params=params or {},
-            auth=auth,
-            cookies=cookies,
-            hooks=hooks,
-        )
-        prep = self.prepare_request(req)
-
-        proxies = proxies or {}
-
-        settings = self.merge_environment_settings(
-            prep.url, proxies, stream, verify, cert
-        )
-
-        # Send the request.
-        send_kwargs = {
-            "timeout": timeout,
-            "allow_redirects": allow_redirects,
-        }
-        send_kwargs.update(settings)
-        resp = self.send(prep, **send_kwargs)
-
-        return resp
-
-    def get(self, url, **kwargs):
-        r"""Sends a GET request. Returns :class:`Response` object.
-
-        :param url: URL for the new :class:`Request` object.
-        :param \*\*kwargs: Optional arguments that ``request`` takes.
-        :rtype: requests.Response
-        """
-
-        kwargs.setdefault("allow_redirects", True)
-        return self.request("GET", url, **kwargs)
-
-    def options(self, url, **kwargs):
-        r"""Sends a OPTIONS request. Returns :class:`Response` object.
-
-        :param url: URL for the new :class:`Request` object.
-        :param \*\*kwargs: Optional arguments that ``request`` takes.
-        :rtype: requests.Response
-        """
-
-        kwargs.setdefault("allow_redirects", True)
-        return self.request("OPTIONS", url, **kwargs)
-
-    def head(self, url, **kwargs):
-        r"""Sends a HEAD request. Returns :class:`Response` object.
-
-        :param url: URL for the new :class:`Request` object.
-        :param \*\*kwargs: Optional arguments that ``request`` takes.
-        :rtype: requests.Response
-        """
-
-        kwargs.setdefault("allow_redirects", False)
-        return self.request("HEAD", url, **kwargs)
-
-    def post(self, url, data=None, json=None, **kwargs):
-        r"""Sends a POST request. Returns :class:`Response` object.
-
-        :param url: URL for the new :class:`Request` object.
-        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
-            object to send in the body of the :class:`Request`.
-        :param json: (optional) json to send in the body of the :class:`Request`.
-        :param \*\*kwargs: Optional arguments that ``request`` takes.
-        :rtype: requests.Response
-        """
-
-        return self.request("POST", url, data=data, json=json, **kwargs)
-
-    def put(self, url, data=None, **kwargs):
-        r"""Sends a PUT request. Returns :class:`Response` object.
-
-        :param url: URL for the new :class:`Request` object.
-        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
-            object to send in the body of the :class:`Request`.
-        :param \*\*kwargs: Optional arguments that ``request`` takes.
-        :rtype: requests.Response
-        """
-
-        return self.request("PUT", url, data=data, **kwargs)
-
-    def patch(self, url, data=None, **kwargs):
-        r"""Sends a PATCH request. Returns :class:`Response` object.
-
-        :param url: URL for the new :class:`Request` object.
-        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
-            object to send in the body of the :class:`Request`.
-        :param \*\*kwargs: Optional arguments that ``request`` takes.
-        :rtype: requests.Response
-        """
-
-        return self.request("PATCH", url, data=data, **kwargs)
-
-    def delete(self, url, **kwargs):
-        r"""Sends a DELETE request. Returns :class:`Response` object.
-
-        :param url: URL for the new :class:`Request` object.
-        :param \*\*kwargs: Optional arguments that ``request`` takes.
-        :rtype: requests.Response
-        """
-
-        return self.request("DELETE", url, **kwargs)
-
+    # 处理异常情况，记录错误统计
     def send(self, request, **kwargs):
         """Send a given PreparedRequest.
 
@@ -699,12 +585,29 @@ class Session(SessionRedirectMixin):
         # Start time (approximately) of the request
         start = preferred_clock()
 
-        # Send the request
-        r = adapter.send(request, **kwargs)
+        try:
+            # Send the request
+            r = adapter.send(request, **kwargs)
+        except Exception:
+            # Record error if host policies are enabled
+            if self._host_policy_mgr is not None:
+                parsed_url = urlparse(request.url)
+                host = parsed_url.hostname
+                if host:
+                    elapsed = preferred_clock() - start
+                    self._host_policy_mgr.record_response(host, elapsed * 1000, None)
+            raise
 
         # Total elapsed time of the request (approximately)
         elapsed = preferred_clock() - start
         r.elapsed = timedelta(seconds=elapsed)
+
+        # Record successful response if host policies are enabled
+        if self._host_policy_mgr is not None:
+            parsed_url = urlparse(request.url)
+            host = parsed_url.hostname
+            if host:
+                self._host_policy_mgr.record_response(host, elapsed * 1000, r.status_code)
 
         # Response manipulation hooks
         r = dispatch_hook("response", hooks, r, **kwargs)
