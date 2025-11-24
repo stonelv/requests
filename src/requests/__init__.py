@@ -178,6 +178,12 @@ from .models import PreparedRequest, Request, Response
 from .sessions import Session, session
 from .status_codes import codes
 
+# HTTP/2 Adapter (optional dependency)
+try:
+    from .adapters_http2 import HTTP2Adapter
+except ImportError:
+    HTTP2Adapter = None
+
 logging.getLogger(__name__).addHandler(NullHandler())
 
 # FileModeWarnings go off per the default.
