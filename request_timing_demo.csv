@@ -1,0 +1,8 @@
+timestamp,method,url,status_code,duration_ms,ttfb_ms,content_length,error
+1763994037.3775206,GET,https://httpbin.org/get,503,1765.22,1764.91,162,
+1763994039.246979,GET,https://httpbin.org/delay/1,503,283.83,283.55,162,
+1763994039.650415,GET,https://httpbin.org/status/200,503,288.18,287.95,162,
+1763994040.0409343,GET,https://httpbin.org/status/404,503,279.36,279.04,162,
+1763994040.4231813,GET,https://httpbin.org/json,503,278.86,278.67,162,
+1763994040.8242948,GET,https://httpbin.org/html,503,319.12,318.98,162,
+1763994041.251249,GET,https://httpbin.org/delay/2,503,387.41,387.11,162,
