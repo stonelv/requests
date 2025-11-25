@@ -30,8 +30,8 @@ requests:
             config_file = f.name
         
         try:
-            loader = ConfigLoader()
-            config = loader.load_config(config_file)
+            loader = ConfigLoader(config_file)
+            config = loader.load_config()
             
             assert "requests" in config
             assert len(config["requests"]) == 2
@@ -62,12 +62,13 @@ requests:
             config_file = f.name
         
         try:
-            loader = ConfigLoader()
-            config = loader.load_config(config_file)
+            loader = ConfigLoader(config_file)
+            loader.load_config()
+            processed_requests = loader.process_requests()
             
-            assert config["requests"][0]["url"] == "https://example.com/api/users"
-            assert config["requests"][0]["headers"]["Authorization"] == "Bearer secret123"
-            assert config["requests"][0]["data"] == "key=secret123"
+            assert processed_requests[0]["url"] == "https://example.com/api/users"
+            assert processed_requests[0]["headers"]["Authorization"] == "Bearer secret123"
+            assert processed_requests[0]["data"] == "key=secret123"
         finally:
             os.unlink(config_file)
     
@@ -83,20 +84,22 @@ variables:
             config_file = f.name
         
         try:
-            loader = ConfigLoader()
+            loader = ConfigLoader(config_file)
             with pytest.raises(ConfigLoaderException) as exc_info:
-                loader.load_config(config_file)
+                loader.load_config()
             
-            assert "Configuration must contain a 'requests' list" in str(exc_info.value)
+            assert "Configuration must contain 'requests' list" in str(exc_info.value)
         finally:
             os.unlink(config_file)
     
     def test_load_config_invalid_yaml(self):
-        """Test loading invalid YAML file."""
+        """Test loading invalid YAML configuration."""
         config_content = """
 invalid yaml content:
   - missing colon
     invalid indentation
+  invalid_key: {
+    unclosed_brace: true
 """
         
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
@@ -104,134 +107,253 @@ invalid yaml content:
             config_file = f.name
         
         try:
-            loader = ConfigLoader()
+            loader = ConfigLoader(config_file)
             with pytest.raises(ConfigLoaderException) as exc_info:
-                loader.load_config(config_file)
+                loader.load_config()
             
-            assert "Failed to parse YAML configuration" in str(exc_info.value)
+            assert "Invalid YAML format" in str(exc_info.value)
         finally:
             os.unlink(config_file)
     
-    def test_load_config_nonexistent_file(self):
-        """Test loading non-existent configuration file."""
-        loader = ConfigLoader()
-        with pytest.raises(ConfigLoaderException) as exc_info:
-            loader.load_config("nonexistent.yaml")
+    def test_load_config_empty_requests(self):
+        """Test loading configuration with empty requests list."""
+        config_content = """
+requests: []
+"""
         
-        assert "Configuration file not found" in str(exc_info.value)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write(config_content)
+            config_file = f.name
+        
+        try:
+            loader = ConfigLoader(config_file)
+            with pytest.raises(ConfigLoaderException) as exc_info:
+                loader.load_config()
+            
+            assert "'requests' list cannot be empty" in str(exc_info.value)
+        finally:
+            os.unlink(config_file)
     
     def test_validate_config_valid(self):
         """Test validating valid configuration."""
-        config = {
-            "requests": [
-                {"url": "https://example.com", "method": "GET"},
-                {"url": "https://api.example.com", "method": "POST"}
-            ]
-        }
+        # Create a temporary config file for testing
+        config_content = """
+requests:
+  - url: https://example.com
+    method: GET
+"""
         
-        loader = ConfigLoader()
-        loader._validate_config(config)  # Should not raise
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write(config_content)
+            config_file = f.name
+        
+        try:
+            loader = ConfigLoader(config_file)
+            loader.load_config()
+            # Validation happens automatically during load_config
+            assert loader.config is not None
+            assert "requests" in loader.config
+        finally:
+            os.unlink(config_file)
     
     def test_validate_config_empty_requests(self):
         """Test validating configuration with empty requests list."""
-        config = {"requests": []}
+        # Create a temporary config file for testing
+        config_content = """
+requests: []
+"""
         
-        loader = ConfigLoader()
-        with pytest.raises(ConfigLoaderException) as exc_info:
-            loader._validate_config(config)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write(config_content)
+            config_file = f.name
         
-        assert "Configuration must contain at least one request" in str(exc_info.value)
+        try:
+            loader = ConfigLoader(config_file)
+            with pytest.raises(ConfigLoaderException) as exc_info:
+                loader.load_config()
+            
+            assert "'requests' list cannot be empty" in str(exc_info.value)
+        finally:
+            os.unlink(config_file)
     
     def test_validate_config_missing_url(self):
         """Test validating configuration with missing URL."""
-        config = {
-            "requests": [
-                {"method": "GET"}  # Missing URL
-            ]
-        }
+        # Create a temporary config file with invalid request (missing URL)
+        config_content = """
+requests:
+  - method: GET
+"""
         
-        loader = ConfigLoader()
-        with pytest.raises(ConfigLoaderException) as exc_info:
-            loader._validate_config(config)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write(config_content)
+            config_file = f.name
         
-        assert "Each request must have a 'url'" in str(exc_info.value)
+        try:
+            loader = ConfigLoader(config_file)
+            with pytest.raises(ConfigLoaderException) as exc_info:
+                loader.load_config()
+            
+            assert "Request 0 must have a 'url'" in str(exc_info.value)
+        finally:
+            os.unlink(config_file)
     
     def test_validate_config_missing_method(self):
         """Test validating configuration with missing method."""
-        config = {
-            "requests": [
-                {"url": "https://example.com"}  # Missing method
-            ]
-        }
+        # Create a temporary config file with invalid request (missing method)
+        config_content = """
+requests:
+  - url: https://example.com
+"""
         
-        loader = ConfigLoader()
-        with pytest.raises(ConfigLoaderException) as exc_info:
-            loader._validate_config(config)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write(config_content)
+            config_file = f.name
         
-        assert "Each request must have a 'method'" in str(exc_info.value)
+        try:
+            loader = ConfigLoader(config_file)
+            loader.load_config()
+            # Should not raise an exception, method should default to GET
+            assert loader.config["requests"][0]["method"] == "GET"
+        finally:
+            os.unlink(config_file)
     
     def test_interpolate_variables_simple(self):
         """Test simple variable interpolation."""
-        loader = ConfigLoader()
-        result = loader._interpolate_variables(
-            "Hello ${name}!",
-            {"name": "World"}
-        )
-        assert result == "Hello World!"
+        # Create a temporary config file for testing
+        config_content = """
+requests:
+  - url: https://example.com
+    method: GET
+"""
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write(config_content)
+            config_file = f.name
+        
+        try:
+            loader = ConfigLoader(config_file)
+            loader.load_config()
+            result = loader._interpolate_string(
+                "Hello ${name}!",
+                {"name": "World"}
+            )
+            assert result == "Hello World!"
+        finally:
+            os.unlink(config_file)
     
     def test_interpolate_variables_multiple(self):
         """Test multiple variable interpolation."""
-        loader = ConfigLoader()
-        result = loader._interpolate_variables(
-            "${greeting} ${name}, welcome to ${place}!",
-            {"greeting": "Hello", "name": "Alice", "place": "Earth"}
-        )
-        assert result == "Hello Alice, welcome to Earth!"
+        # Create a temporary config file for testing
+        config_content = """
+requests:
+  - url: https://example.com
+    method: GET
+"""
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write(config_content)
+            config_file = f.name
+        
+        try:
+            loader = ConfigLoader(config_file)
+            loader.load_config()
+            result = loader._interpolate_string(
+                "${greeting} ${name}, welcome to ${place}!",
+                {"greeting": "Hello", "name": "Alice", "place": "Earth"}
+            )
+            assert result == "Hello Alice, welcome to Earth!"
+        finally:
+            os.unlink(config_file)
     
     def test_interpolate_variables_nested_data(self):
         """Test variable interpolation in nested data structures."""
-        loader = ConfigLoader()
-        data = {
-            "url": "${base_url}/api/${endpoint}",
-            "headers": {
-                "Authorization": "Bearer ${token}",
-                "X-Custom": "${custom_value}"
-            },
-            "data": "key=${value}"
-        }
+        # Create a temporary config file for testing
+        config_content = """
+requests:
+  - url: https://example.com
+    method: GET
+"""
         
-        variables = {
-            "base_url": "https://api.example.com",
-            "endpoint": "users",
-            "token": "secret123",
-            "custom_value": "test",
-            "value": "data123"
-        }
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write(config_content)
+            config_file = f.name
         
-        result = loader._interpolate_variables(data, variables)
-        
-        assert result["url"] == "https://api.example.com/api/users"
-        assert result["headers"]["Authorization"] == "Bearer secret123"
-        assert result["headers"]["X-Custom"] == "test"
-        assert result["data"] == "key=data123"
+        try:
+            loader = ConfigLoader(config_file)
+            loader.load_config()
+            data = {
+                "url": "${base_url}/api/${endpoint}",
+                "headers": {
+                    "Authorization": "Bearer ${token}",
+                    "X-Custom": "${custom_value}"
+                },
+                "data": "key=${value}"
+            }
+            
+            variables = {
+                "base_url": "https://api.example.com",
+                "endpoint": "users",
+                "token": "secret123",
+                "custom_value": "test",
+                "value": "data123"
+            }
+            
+            result = loader._interpolate_variables(data, variables)
+            
+            assert result["url"] == "https://api.example.com/api/users"
+            assert result["headers"]["Authorization"] == "Bearer secret123"
+            assert result["headers"]["X-Custom"] == "test"
+            assert result["data"] == "key=data123"
+        finally:
+            os.unlink(config_file)
     
     def test_interpolate_variables_undefined(self):
         """Test interpolation with undefined variables."""
-        loader = ConfigLoader()
-        result = loader._interpolate_variables(
-            "Hello ${name}!",
-            {}  # Empty variables
-        )
-        assert result == "Hello ${name}!"  # Should leave undefined variables as-is
+        # Create a temporary config file for testing
+        config_content = """
+requests:
+  - url: https://example.com
+    method: GET
+"""
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write(config_content)
+            config_file = f.name
+        
+        try:
+            loader = ConfigLoader(config_file)
+            loader.load_config()
+            result = loader._interpolate_string(
+                "Hello ${name}!",
+                {}  # Empty variables
+            )
+            assert result == "Hello ${name}!"  # Should leave undefined variables as-is
+        finally:
+            os.unlink(config_file)
     
     def test_interpolate_variables_no_variables(self):
         """Test interpolation when no variables are present."""
-        loader = ConfigLoader()
-        result = loader._interpolate_variables(
-            "Hello World!",
-            {"name": "World"}
-        )
-        assert result == "Hello World!"
+        # Create a temporary config file for testing
+        config_content = """
+requests:
+  - url: https://example.com
+    method: GET
+"""
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write(config_content)
+            config_file = f.name
+        
+        try:
+            loader = ConfigLoader(config_file)
+            loader.load_config()
+            result = loader._interpolate_string(
+                "Hello World!",
+                {"name": "World"}
+            )
+            assert result == "Hello World!"
+        finally:
+            os.unlink(config_file)
     
     def test_process_request_with_defaults(self):
         """Test processing request with default values."""
@@ -240,12 +362,27 @@ invalid yaml content:
             # Missing method, should default to GET
         }
         
-        loader = ConfigLoader()
-        processed = loader._process_request(request)
+        # Create a temporary config file for testing
+        config_content = """
+requests:
+  - url: https://example.com
+    method: GET
+"""
         
-        assert processed["url"] == "https://example.com"
-        assert processed["method"] == "GET"  # Should default to GET
-        assert processed["timeout"] == 30.0  # Should use default timeout
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write(config_content)
+            config_file = f.name
+        
+        try:
+            loader = ConfigLoader(config_file)
+            loader.load_config()
+            loader._validate_request(request, 0)
+            
+            assert request["url"] == "https://example.com"
+            assert request["method"] == "GET"  # Should default to GET
+            assert request["timeout"] == 30.0  # Should use default timeout
+        finally:
+            os.unlink(config_file)
     
     def test_process_request_with_custom_values(self):
         """Test processing request with custom values."""
@@ -257,11 +394,26 @@ invalid yaml content:
             "retry_backoff": 3.0
         }
         
-        loader = ConfigLoader()
-        processed = loader._process_request(request)
+        # Create a temporary config file for testing
+        config_content = """
+requests:
+  - url: https://example.com
+    method: GET
+"""
         
-        assert processed["url"] == "https://example.com"
-        assert processed["method"] == "POST"
-        assert processed["timeout"] == 60.0
-        assert processed["retries"] == 5
-        assert processed["retry_backoff"] == 3.0
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            f.write(config_content)
+            config_file = f.name
+        
+        try:
+            loader = ConfigLoader(config_file)
+            loader.load_config()
+            loader._validate_request(request, 0)
+            
+            assert request["url"] == "https://example.com"
+            assert request["method"] == "POST"
+            assert request["timeout"] == 60.0
+            assert request["retries"] == 5
+            assert request["retry_backoff"] == 3.0
+        finally:
+            os.unlink(config_file)

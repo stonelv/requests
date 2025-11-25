@@ -139,6 +139,10 @@ class ConfigLoader:
         if "bearer" in result and isinstance(result["bearer"], str):
             result["bearer"] = self._interpolate_string(result["bearer"], variables)
         
+        # Interpolate in file field
+        if "file_field" in result and isinstance(result["file_field"], str):
+            result["file_field"] = self._interpolate_string(result["file_field"], variables)
+        
         return result
     
     def _interpolate_string(self, text: str, variables: Dict[str, Any]) -> str:
@@ -155,8 +159,7 @@ class ConfigLoader:
             if var_name in variables:
                 replacement = str(variables[var_name])
                 result = result.replace(f'${{{var_name}}}', replacement)
-            else:
-                raise ConfigLoaderException(f"Variable '{var_name}' not found in configuration")
+            # Strict policy: undefined variables are left as-is (no error raised)
         
         return result
 

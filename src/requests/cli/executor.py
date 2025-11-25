@@ -29,33 +29,63 @@ class RequestExecutor:
         data: Optional[Union[str, Dict[str, str]]] = None,
         json_data: Optional[Dict[str, Any]] = None,
         file_path: Optional[str] = None,
+        file_field: Optional[str] = None,
         auth: Optional[Tuple[str, str]] = None,
         bearer_token: Optional[str] = None,
-    ) -> requests.Response:
-        """Execute an HTTP request with retry logic."""
+    ) -> Tuple[requests.Response, float, int]:
+        """Execute an HTTP request with retry logic.
         
+        Returns:
+            Tuple[requests.Response, float, int]: (response, elapsed_time_seconds, attempts_used)
+        """
+        
+        start_time = time.time()
         # Prepare request parameters
         request_params = self._prepare_request_params(
-            url, method, headers, data, json_data, file_path, auth, bearer_token
+            url, method, headers, data, json_data, file_path, file_field, auth, bearer_token
         )
         
-        # Execute request with retries
-        last_exception = None
-        for attempt in range(self.retries + 1):
-            try:
-                response = self.session.request(**request_params)
-                return response
-            except (Timeout, ConnectionError, HTTPError) as e:
-                last_exception = e
-                if attempt < self.retries:
-                    backoff_time = self.retry_backoff * (2 ** attempt)
-                    time.sleep(backoff_time)
-                else:
-                    raise RequestExecutorException(f"Request failed after {self.retries + 1} attempts: {str(e)}") from e
-            except RequestException as e:
-                raise RequestExecutorException(f"Request failed: {str(e)}") from e
+        # Handle file upload - open file here to avoid early closure
+        file_handle = None
+        if "files" in request_params:
+            files_dict = request_params["files"]
+            new_files_dict = {}
+            for field_name, file_path in files_dict.items():
+                try:
+                    file_handle = open(file_path, "rb")
+                    new_files_dict[field_name] = file_handle
+                except IOError as e:
+                    if file_handle:
+                        file_handle.close()
+                    raise RequestExecutorException(f"Failed to read file {file_path}: {str(e)}") from e
+            request_params["files"] = new_files_dict
         
-        raise RequestExecutorException(f"Request failed after {self.retries + 1} attempts: {str(last_exception)}")
+        try:
+            # Execute request with retries
+            last_exception = None
+            for attempt in range(self.retries + 1):
+                try:
+                    response = self.session.request(**request_params)
+                    elapsed_time = time.time() - start_time
+                    attempts_used = attempt + 1
+                    return response, elapsed_time, attempts_used
+                except (Timeout, ConnectionError, HTTPError) as e:
+                    last_exception = e
+                    if attempt < self.retries:
+                        backoff_time = self.retry_backoff * (2 ** attempt)
+                        time.sleep(backoff_time)
+                    else:
+                        elapsed_time = time.time() - start_time
+                        attempts_used = attempt + 1
+                        raise RequestExecutorException(f"Request failed after {attempts_used} attempts: {str(e)}") from e
+                except RequestException as e:
+                    elapsed_time = time.time() - start_time
+                    attempts_used = attempt + 1
+                    raise RequestExecutorException(f"Request failed: {str(e)}") from e
+        finally:
+            # Ensure file is closed
+            if file_handle:
+                file_handle.close()
     
     def _prepare_request_params(
         self,
@@ -65,6 +95,7 @@ class RequestExecutor:
         data: Optional[Union[str, Dict[str, str]]],
         json_data: Optional[Dict[str, Any]],
         file_path: Optional[str],
+        file_field: Optional[str],
         auth: Optional[Tuple[str, str]],
         bearer_token: Optional[str],
     ) -> Dict[str, Any]:
@@ -98,10 +129,12 @@ class RequestExecutor:
                 params["data"] = data
         elif file_path:
             try:
-                with open(file_path, "rb") as f:
-                    params["files"] = {"file": f}
-            except IOError as e:
-                raise RequestExecutorException(f"Failed to read file {file_path}: {str(e)}") from e
+                # Use the file field name if provided, otherwise default to "file"
+                field_name = file_field or "file"
+                # Store file path for later opening in execute_request to avoid early closing
+                params["files"] = {field_name: file_path}
+            except Exception as e:
+                raise RequestExecutorException(f"Failed to process file {file_path}: {str(e)}") from e
         
         return params
 

@@ -22,6 +22,9 @@ class RequestResult:
     status_code: Optional[int]
     response_time: float
     error: Optional[Exception] = None
+    name: Optional[str] = None
+    retries: int = 0
+    body_length: Optional[int] = None
 
 
 class ReportGenerator:
@@ -65,35 +68,52 @@ class ReportGenerator:
             return f"{color_codes[color_code]}{text}{color_codes['reset']}"
         return text
     
-    def print_request_summary(self, result: RequestResult, index: Optional[int] = None) -> None:
+    def print_request_summary(self, request_config: Dict[str, Any], response: Optional[requests.Response] = None,
+                             error: Optional[str] = None, index: Optional[int] = None,
+                             elapsed_time: Optional[float] = None, attempts_used: Optional[int] = None) -> None:
         """Print a summary of a single request."""
         if index is not None:
             prefix = f"[{index}] "
         else:
             prefix = ""
         
-        if result.error:
+        method = request_config.get("method", "GET")
+        url = request_config.get("url", "")
+        
+        # Convert elapsed_time from seconds to milliseconds
+        time_ms = (elapsed_time * 1000) if elapsed_time else 0
+        
+        if error:
             status_text = self.colorize("FAILED", "red")
-            output = f"{prefix}{result.method} {result.url} - {status_text}\n"
-            output += f"  Error: {str(result.error)}"
+            output = f"{prefix}{method} {url} - {status_text}\n"
+            output += f"  Error: {error}\n"
+            output += f"  Time: {time_ms:.0f}ms"
+            if attempts_used and attempts_used > 1:
+                output += f", Retries: {attempts_used - 1}"
             print(output)
-        elif result.status_code is not None:
-            status_category = self._get_status_code_category(result.status_code)
+        elif response is not None:
+            status_code = response.status_code
+            status_category = self._get_status_code_category(status_code)
             
-            if 200 <= result.status_code < 300:
-                status_text = self.colorize(str(result.status_code), "green")
-            elif 300 <= result.status_code < 400:
-                status_text = self.colorize(str(result.status_code), "yellow")
-            elif 400 <= result.status_code < 500:
-                status_text = self.colorize(str(result.status_code), "red")
+            if 200 <= status_code < 300:
+                status_text = self.colorize(str(status_code), "green")
+            elif 300 <= status_code < 400:
+                status_text = self.colorize(str(status_code), "yellow")
+            elif 400 <= status_code < 500:
+                status_text = self.colorize(str(status_code), "red")
             else:
-                status_text = self.colorize(str(result.status_code), "magenta")
+                status_text = self.colorize(str(status_code), "magenta")
             
-            output = f"{prefix}{result.method} {result.url} - {status_text} ({status_category})\n"
-            output += f"  Response time: {result.response_time:.1f}s"
+            output = f"{prefix}{method} {url} - {status_text} ({status_category})\n"
+            output += f"  Time: {time_ms:.0f}ms"
+            if attempts_used and attempts_used > 1:
+                output += f", Retries: {attempts_used - 1}"
+            if hasattr(response, 'content'):
+                body_length = len(response.content)
+                output += f", Body: {body_length} bytes"
             print(output)
         else:
-            summary_line = f"{prefix}{result.method} {result.url} - Pending..."
+            summary_line = f"{prefix}{method} {url} - Pending..."
             print(summary_line)
     
     def print_response_details(self, response: Any, show_headers: bool = False, show_body: bool = False) -> None:
@@ -162,6 +182,28 @@ class ReportGenerator:
         print(f"Total requests: {total}")
         print(f"Successful: {self.colorize(str(successful), 'green')}")
         print(f"Failed: {self.colorize(str(failed), 'red')}")
+        
+        # Print detailed table
+        if results:
+            print(f"\n{self.colorize('Detailed Results:', 'bold')}")
+            print(f"{'Name':<15} {'Method':<8} {'Status':<8} {'OK':<4} {'Time(ms)':<10} {'Retries':<8}")
+            print("-" * 65)
+            
+            for result in results:
+                name = result.name or "-"
+                method = result.method
+                status = str(result.status_code) if result.status_code is not None else "ERROR"
+                ok = "✓" if result.status_code is not None and 200 <= result.status_code < 300 else "✗"
+                time_ms = f"{result.response_time * 1000:.0f}"
+                retries = str(result.retries)
+                
+                # Color code the OK column
+                if ok == "✓":
+                    ok = self.colorize(ok, "green")
+                else:
+                    ok = self.colorize(ok, "red")
+                
+                print(f"{name:<15} {method:<8} {status:<8} {ok:<4} {time_ms:<10} {retries:<8}")
         
         if failed > 0:
             print("\nFailed requests:")

@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional, List
 from .parser import parse_args, validate_args
 from .executor import create_executor, parse_auth, is_success_status_code, RequestExecutorException
 from .config_loader import load_batch_config, ConfigLoaderException
-from .report import create_report_generator
+from .report import create_report_generator, RequestResult
 
 
 # Exit codes
@@ -65,14 +65,14 @@ def handle_single_request(args) -> int:
     
     try:
         # Execute request
-        response = executor.execute_request(**request_params)
+        response, elapsed_time, attempts_used = executor.execute_request(**request_params)
         
         # Print request summary
         request_config = {
             "method": args.method,
             "url": args.url
         }
-        reporter.print_request_summary(request_config, response)
+        reporter.print_request_summary(request_config, response, elapsed_time=elapsed_time, attempts_used=attempts_used)
         
         # Print response details
         if is_success_status_code(response.status_code):
@@ -122,10 +122,22 @@ def handle_batch_mode(args) -> int:
                 request_params = build_request_params_from_config(request_config)
                 
                 # Execute request
-                response = executor.execute_request(**request_params)
+                response, elapsed_time, attempts_used = executor.execute_request(**request_params)
+                
+                # Create RequestResult for this request
+                request_result = RequestResult(
+                    url=request_config.get("url", ""),
+                    method=request_config.get("method", "GET"),
+                    status_code=response.status_code if response else None,
+                    response_time=elapsed_time,
+                    error=None,
+                    name=request_config.get("name"),
+                    retries=attempts_used - 1,  # retries = attempts - 1
+                    body_length=len(response.content) if response and hasattr(response, 'content') else None
+                )
                 
                 # Print request summary
-                reporter.print_request_summary(request_config, response, index=i)
+                reporter.print_request_summary(request_config, response, index=i, elapsed_time=elapsed_time, attempts_used=attempts_used)
                 
                 # Print response details if requested
                 show_option = request_config.get("show", "all")
@@ -141,19 +153,23 @@ def handle_batch_mode(args) -> int:
                 if "save" in request_config:
                     reporter.save_response(response, request_config["save"])
                 
-                results.append({
-                    "success": True,
-                    "request": request_config,
-                    "response": response
-                })
+                results.append(request_result)
             
             except RequestExecutorException as e:
+                # Create RequestResult for failed request
+                request_result = RequestResult(
+                    url=request_config.get("url", ""),
+                    method=request_config.get("method", "GET"),
+                    status_code=None,
+                    response_time=0.0,  # No elapsed time for failed requests
+                    error=str(e),
+                    name=request_config.get("name"),
+                    retries=0,  # No retries for failed requests
+                    body_length=None
+                )
+                
                 reporter.print_request_summary(request_config, error=str(e), index=i)
-                results.append({
-                    "success": False,
-                    "request": request_config,
-                    "error": str(e)
-                })
+                results.append(request_result)
                 has_failures = True
         
         # Print batch summary
@@ -191,6 +207,8 @@ def build_request_params(args) -> Dict[str, Any]:
             raise ValueError(f"Invalid JSON data: {str(e)}")
     elif hasattr(args, 'file') and args.file:
         params["file_path"] = args.file
+        if hasattr(args, 'file_field') and args.file_field:
+            params["file_field"] = args.file_field
     
     return params
 

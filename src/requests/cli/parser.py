@@ -57,6 +57,10 @@ Examples:
         "--file", "-f",
         help="File to upload"
     )
+    parser.add_argument(
+        "--file-field",
+        help="Field name for file upload (default: file)"
+    )
 
     # Authentication
     auth_group = parser.add_mutually_exclusive_group()
