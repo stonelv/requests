@@ -1,0 +1,6 @@
+[webcache_explorer]
+concurrency = 10
+timeout = 10
+retries = 3
+data_dir = "data"
+index_file = "index.json"
