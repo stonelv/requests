@@ -73,6 +73,11 @@ setup(
     install_requires=requires,
     license=about["__license__"],
     zip_safe=False,
+    entry_points={
+        "console_scripts": [
+            "rhttp=requests.cli:main",
+        ],
+    },
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Environment :: Web Environment",
