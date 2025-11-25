@@ -40,7 +40,6 @@ class TestParser(unittest.TestCase):
             '-X', 'POST',
             '-H', 'Content-Type: application/json',
             '-H', 'Authorization: Bearer token123',
-            '--data', 'param1=value1&param2=value2',
             '--json', '{"key": "value"}',
             '--file', 'test.txt',
             '--auth', 'user:pass',
@@ -57,7 +56,6 @@ class TestParser(unittest.TestCase):
         self.assertEqual(args.url, 'http://example.com')
         self.assertEqual(args.method, 'POST')
         self.assertEqual(args.header, ['Content-Type: application/json', 'Authorization: Bearer token123'])
-        self.assertEqual(args.data, 'param1=value1&param2=value2')
         self.assertEqual(args.json, '{"key": "value"}')
         self.assertEqual(args.file, 'test.txt')
         self.assertEqual(args.auth, 'user:pass')

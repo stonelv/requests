@@ -28,32 +28,39 @@ def main() -> int:
         results = []
         for i, req in enumerate(requests_config):
             try:
-                # Prepare request parameters
-                req_params = {
-                    'url': req['url'],
-                    'method': req.get('method', 'GET'),
-                    'headers': req.get('headers', {}),
-                    'data': req.get('data'),
-                    'json': req.get('json'),
-                    'file_path': req.get('file'),
-                    'auth': req.get('auth'),
-                    'bearer': req.get('bearer'),
+                # Prepare request parameters using prepare_request
+                req_params = prepare_request(
+                    url=req['url'],
+                    method=req.get('method', 'GET'),
+                    headers=req.get('headers', {}),
+                    data=req.get('data'),
+                    json=req.get('json'),
+                    file_path=req.get('file'),
+                    file_field=req.get('file_field', 'file'),
+                    auth=req.get('auth'),
+                    bearer=req.get('bearer')
+                )
+                
+                # Add timeout, retries, and retry_backoff to request parameters
+                req_params.update({
                     'timeout': req.get('timeout', args.timeout),
                     'retries': req.get('retries', args.retries),
                     'retry_backoff': req.get('retry_backoff', args.retry_backoff)
-                }
+                })
                 
                 # Execute request
-                response, elapsed_time = execute_request(**req_params)
+                response, elapsed_time, attempts_used = execute_request(**req_params)
                 
                 # Store result
                 results.append({
                     'index': i,
+                    'name': req.get('name'),
                     'method': req_params['method'],
                     'url': req_params['url'],
                     'status_code': response.status_code,
                     'reason': response.reason,
-                    'elapsed_time': elapsed_time
+                    'elapsed_time': elapsed_time,
+                    'attempts_used': attempts_used
                 })
                 
                 # Print result
@@ -64,11 +71,13 @@ def main() -> int:
                 print(f'Request {i+1} failed: {e}', file=sys.stderr)
                 results.append({
                     'index': i,
+                    'name': req.get('name'),
                     'method': req.get('method', 'GET'),
                     'url': req['url'],
                     'status_code': -1,
                     'reason': 'Error',
-                    'elapsed_time': 0.0
+                    'elapsed_time': 0.0,
+                    'attempts_used': 1
                 })
         
         # Print summary
@@ -107,7 +116,7 @@ def main() -> int:
             })
             
             # Execute request
-            response, elapsed_time = execute_request(**req_params)
+            response, elapsed_time, attempts_used = execute_request(**req_params)
             
             # Save response if requested
             if args.save:
@@ -115,7 +124,8 @@ def main() -> int:
                     f.write(response.text)
             
             # Format and print response
-            print(format_response(response, show=args.show, color=args.color))
+            elapsed_ms = elapsed_time * 1000
+            print(format_response(response, show=args.show, color=args.color, elapsed_ms=elapsed_ms, attempts_used=attempts_used))
             
             # Return exit code: 10 if non-2xx, 0 otherwise
             return 10 if (response.status_code < 200 or response.status_code >= 300) else 0

@@ -19,24 +19,26 @@ def execute_request(
     timeout: float = 30.0,
     retries: int = 0,
     retry_backoff: float = 1.0
-) -> Tuple[Response, float]:
-    """Execute an HTTP request with optional retries."""
+) -> Tuple[Response, float, int]:
+    """Execute an HTTP request with optional retries, returning (response, elapsed_time, attempts_used)."""
     session = requests.Session()
-    
-    # Configure authentication
+    # Initialize headers to empty dict if None to avoid KeyError when adding auth/bearer token
+    headers = headers or {}
     if auth:
         session.auth = HTTPBasicAuth(*auth)
     
-    # Configure bearer token
+    # Configure bearer token with Authorization header conflict check
     if bearer:
-        if headers is None:
-            headers = {}
+        if 'Authorization' in headers:
+            print(f"Warning: Overwriting existing Authorization header with Bearer token")
         headers['Authorization'] = f'Bearer {bearer}'
     
     response = None
     start_time = time.time()
+    attempts_used = 0
     
     for attempt in range(retries + 1):
+        attempts_used += 1
         try:
             response = session.request(
                 method=method,
@@ -60,7 +62,7 @@ def execute_request(
             time.sleep(backoff)
     
     elapsed_time = time.time() - start_time
-    return response, elapsed_time
+    return response, elapsed_time, attempts_used
 
 
 def prepare_request(
@@ -70,6 +72,7 @@ def prepare_request(
     data: str = None,
     json: str = None,
     file_path: str = None,
+    file_field: str = 'file',
     auth: str = None,
     bearer: str = None
 ) -> Dict[str, Any]:
@@ -91,7 +94,7 @@ def prepare_request(
     
     # Prepare files for upload
     if file_path:
-        request_params['files'] = {'file': open(file_path, 'rb')}
+        request_params['files'] = {file_field: open(file_path, 'rb')}
     
     # Parse authentication
     if auth:

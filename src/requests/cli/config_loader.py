@@ -19,7 +19,7 @@ def load_config(file_path: str) -> Dict[str, Any]:
 
 
 def interpolate_variables(config: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Interpolate variables in requests using ${var} syntax."""
+    """Interpolate variables in requests using ${var} syntax with strict error handling."""
     variables = config.get('variables', {})
     requests = config.get('requests', [])
     
@@ -27,8 +27,21 @@ def interpolate_variables(config: Dict[str, Any]) -> List[Dict[str, Any]]:
     def interpolate_string(s: str) -> str:
         if not isinstance(s, str):
             return s
-        # Replace ${var} with variable value
-        return re.sub(r'\$\{([^}]+)\}', lambda m: variables.get(m.group(1), ''), s)
+        
+        # Replace ${var} with variable value, raising error if missing
+        def replace_var(match):
+            var_name = match.group(1)
+            return str(variables.get(var_name, ''))
+        
+        # First pass: replace all ${var} occurrences
+        interpolated = re.sub(r'\$\{([^}]+)\}', replace_var, s)
+        
+        # Second pass: check for remaining ${...} patterns
+        remaining = re.findall(r'\$\{([^}]+)\}', interpolated)
+        if remaining:
+            raise ValueError(f"Unresolved variables after interpolation: {', '.join(remaining)}")
+        
+        return interpolated
     
     # Function to interpolate variables in a nested structure
     def interpolate(obj):

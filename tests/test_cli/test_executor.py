@@ -21,7 +21,7 @@ class TestExecutor(unittest.TestCase):
         mock_request.return_value = mock_response
         
         # Execute request
-        response, elapsed_time = execute_request(
+        response, elapsed_time, attempts_used = execute_request(
             url='http://example.com',
             method='GET'
         )
@@ -30,7 +30,7 @@ class TestExecutor(unittest.TestCase):
         mock_request.assert_called_once_with(
             method='GET',
             url='http://example.com',
-            headers=None,
+            headers={},
             data=None,
             json=None,
             files=None,
@@ -38,6 +38,7 @@ class TestExecutor(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertGreater(elapsed_time, 0.0)
+        self.assertEqual(attempts_used, 1)
 
     @patch('requests.Session.request')
     def test_execute_request_with_retries(self, mock_request):
@@ -50,7 +51,7 @@ class TestExecutor(unittest.TestCase):
         ]
         
         # Execute request with 2 retries
-        response, elapsed_time = execute_request(
+        response, elapsed_time, attempts_used = execute_request(
             url='http://example.com',
             method='GET',
             retries=2,
@@ -60,6 +61,7 @@ class TestExecutor(unittest.TestCase):
         # Assertions
         self.assertEqual(mock_request.call_count, 3)  # 2 retries + 1 successful
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(attempts_used, 3)
 
     @patch('requests.Session')
     def test_execute_request_basic_auth(self, mock_session_class):
@@ -71,7 +73,7 @@ class TestExecutor(unittest.TestCase):
         mock_session_class.return_value = mock_session
         
         # Execute request with auth
-        response, elapsed_time = execute_request(
+        response, elapsed_time, attempts_used = execute_request(
             url='http://example.com',
             method='GET',
             auth=('user', 'pass')
@@ -81,6 +83,7 @@ class TestExecutor(unittest.TestCase):
         self.assertTrue(mock_session.auth is not None)
         self.assertEqual(mock_session.auth.username, 'user')
         self.assertEqual(mock_session.auth.password, 'pass')
+        self.assertEqual(attempts_used, 1)
 
     @patch('requests.Session.request')
     def test_execute_request_bearer_auth(self, mock_request):
@@ -90,7 +93,7 @@ class TestExecutor(unittest.TestCase):
         mock_request.return_value = mock_response
         
         # Execute request with bearer token
-        response, elapsed_time = execute_request(
+        response, elapsed_time, attempts_used = execute_request(
             url='http://example.com',
             method='GET',
             bearer='token123'
@@ -101,6 +104,7 @@ class TestExecutor(unittest.TestCase):
         call_args = mock_request.call_args[1]
         self.assertIn('headers', call_args)
         self.assertEqual(call_args['headers']['Authorization'], 'Bearer token123')
+        self.assertEqual(attempts_used, 1)
 
     def test_prepare_request_form_data(self):
         """Test preparing request with form data."""

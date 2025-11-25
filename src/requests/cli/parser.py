@@ -16,17 +16,22 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument('url', nargs='?', help='URL for single request mode')
     parser.add_argument('-X', '--method', default='GET', help='HTTP method to use')
     parser.add_argument('-H', '--header', action='append', default=[], help='Custom headers (repeatable)')
-    parser.add_argument('--data', help='Form data to send (application/x-www-form-urlencoded)')
-    parser.add_argument('--json', help='JSON data to send (application/json)')
+    
+    # Mutually exclusive group for data and json
+    data_group = parser.add_mutually_exclusive_group()
+    data_group.add_argument('--data', help='Form data to send (application/x-www-form-urlencoded)')
+    data_group.add_argument('--json', help='JSON data to send (application/json)')
+    
     parser.add_argument('--file', help='File to upload')
+    parser.add_argument('--file-field', default='file', help='Form field name for file upload')
     parser.add_argument('--auth', help='Basic authentication (user:pass)')
     parser.add_argument('--bearer', help='Bearer token authentication')
     parser.add_argument('--timeout', type=float, default=30.0, help='Request timeout in seconds')
     parser.add_argument('--retries', type=int, default=0, help='Number of retries')
     parser.add_argument('--retry-backoff', type=float, default=1.0, help='Initial retry backoff in seconds')
     parser.add_argument('--save', help='Save response to file')
-    parser.add_argument('--show', choices=['headers', 'body', 'all'], default='body', help='What to show in output')
-    parser.add_argument('--color', action='store_true', default=True, help='Enable colored output')
+    parser.add_argument('--show', choices=['headers', 'body', 'all', 'summary'], default='body', help='What to show in output')
+    parser.add_argument('--color', action='store_true', default=None, help='Enable colored output')
     parser.add_argument('--no-color', action='store_false', dest='color', help='Disable colored output')
 
     # Batch mode argument
