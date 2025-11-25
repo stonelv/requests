@@ -5,8 +5,9 @@
 data/*.html linguist-generated=true
 data/*.json linguist-generated=true
 data/*.txt linguist-generated=true
-data/**/*.html linguist-generated=true  # For nested directories like data/cache/*.html
-data/**/*.json linguist-generated=true  # For nested directories like data/cache/*.json
+# For nested directories like data/cache/*.html
+data/**/*.html linguist-generated=true
+data/**/*.json linguist-generated=true
 
 # Test data files
 test_urls.txt linguist-generated=true
