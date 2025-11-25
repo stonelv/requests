@@ -1,0 +1,21 @@
+# WebCache Explorer Configuration
+
+[fetching]
+max_workers = 10
+timeout = 30
+max_retries = 3
+retry_delay = 1
+
+[storage]
+data_dir = "data"
+index_file = "index.json"
+max_content_size = 10485760  # 10MB
+
+[processing]
+max_search_results = 50
+min_keyword_length = 2
+
+[logging]
+level = "INFO"
+format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+file = "webcache.log"

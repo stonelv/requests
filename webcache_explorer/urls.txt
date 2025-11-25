@@ -1,0 +1,10 @@
+https://httpbin.org/html
+https://httpbin.org/json
+https://httpbin.org/xml
+https://httpbin.org/robots.txt
+https://httpbin.org/delay/1
+https://httpbin.org/status/404
+https://httpbin.org/gzip
+https://httpbin.org/redirect/1
+https://httpbin.org/cookies
+https://example.com
