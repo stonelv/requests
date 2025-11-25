@@ -12,8 +12,12 @@ import sys
 from pathlib import Path
 
 
-def check_gitattributes(filepath: str, expected_value: str = "true") -> bool:
-    """Check if a file has the linguist-generated attribute set."""
+def check_gitattributes(filepath: str, expected_value: str = "true") -> tuple[bool, str]:
+    """Check if a file has the linguist-generated attribute set.
+    
+    Returns:
+        tuple: (success: bool, message: str) indicating if the check passed and details
+    """
     try:
         result = subprocess.run(
             ["git", "check-attr", "linguist-generated", filepath],
@@ -26,10 +30,14 @@ def check_gitattributes(filepath: str, expected_value: str = "true") -> bool:
         parts = output.split(": ")
         if len(parts) == 3:
             actual_value = parts[2]
-            return actual_value == expected_value
-        return False
-    except subprocess.CalledProcessError:
-        return False
+            success = actual_value == expected_value
+            msg = f"actual={actual_value}" if not success else ""
+            return success, msg
+        return False, f"unexpected format: {output}"
+    except subprocess.CalledProcessError as e:
+        return False, f"git error: {e.stderr}"
+    except Exception as e:
+        return False, f"error: {str(e)}"
 
 
 def main():
@@ -49,10 +57,12 @@ def main():
     failed = 0
     
     for filepath, expected, description in tests:
-        result = check_gitattributes(filepath, expected)
+        result, message = check_gitattributes(filepath, expected)
         status = "✓ PASS" if result else "✗ FAIL"
         print(f"{status}: {description}")
         print(f"       File: {filepath} (expected: {expected})")
+        if message:
+            print(f"       Info: {message}")
         
         if result:
             passed += 1
