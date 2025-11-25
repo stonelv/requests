@@ -27,7 +27,8 @@ def check_gitattributes(filepath: str, expected_value: str = "true") -> tuple[bo
         )
         output = result.stdout.strip()
         # Expected format: "filepath: linguist-generated: value"
-        parts = output.split(": ")
+        # Use rsplit to handle filepaths that might contain colons
+        parts = output.rsplit(": ", 2)
         if len(parts) == 3:
             actual_value = parts[2]
             success = actual_value == expected_value
