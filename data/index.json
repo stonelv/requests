@@ -1,0 +1,63 @@
+{
+  "https://httpbin.org/get": {
+    "filename": "httpbin.org_get.html",
+    "status": 200,
+    "timestamp": 1764062671.682694,
+    "success": true
+  },
+  "https://httpbin.org/ip": {
+    "filename": "httpbin.org_ip.html",
+    "status": 200,
+    "timestamp": 1764062671.7239296,
+    "success": true
+  },
+  "https://httpbin.org/headers": {
+    "filename": "httpbin.org_headers.html",
+    "status": 200,
+    "timestamp": 1764062672.765383,
+    "success": true
+  },
+  "https://httpbin.org/user-agent": {
+    "filename": "httpbin.org_user-agent.html",
+    "status": 200,
+    "timestamp": 1764062672.8024752,
+    "success": true
+  },
+  "https://httpbin.org/status/404": {
+    "filename": "httpbin.org_status_404.html",
+    "status": null,
+    "timestamp": 1764062673.1106133,
+    "success": false,
+    "error": "404 Client Error: NOT FOUND for url: https://httpbin.org/status/404"
+  },
+  "https://httpbin.org/json": {
+    "filename": "httpbin.org_json.html",
+    "status": 200,
+    "timestamp": 1764062673.7861347,
+    "success": true
+  },
+  "https://httpbin.org/html": {
+    "filename": "httpbin.org_html.html",
+    "status": 200,
+    "timestamp": 1764062673.8496053,
+    "success": true
+  },
+  "https://httpbin.org/delay/1": {
+    "filename": "httpbin.org_delay_1.html",
+    "status": 200,
+    "timestamp": 1764062674.299503,
+    "success": true
+  },
+  "https://httpbin.org/status/200": {
+    "filename": "httpbin.org_status_200.html",
+    "status": 200,
+    "timestamp": 1764062674.5463622,
+    "success": true
+  },
+  "https://httpbin.org/encoding/utf8": {
+    "filename": "httpbin.org_encoding_utf8.html",
+    "status": 200,
+    "timestamp": 1764062675.1051059,
+    "success": true
+  }
+}
