@@ -1,0 +1,20 @@
+# Mark data files as linguist-generated to exclude from PR diffs and language stats
+# This helps GitHub Copilot and other tools access PR metadata more efficiently
+
+# Cache data files (including subdirectories)
+data/*.html linguist-generated=true
+data/*.json linguist-generated=true
+data/*.txt linguist-generated=true
+# For nested directories like data/cache/*.html
+data/**/*.html linguist-generated=true
+data/**/*.json linguist-generated=true
+
+# Test data files
+test_urls.txt linguist-generated=true
+bench_urls.txt linguist-generated=true
+**/test_*.txt linguist-generated=true
+**/bench_*.txt linguist-generated=true
+
+# Generated or downloaded content that shouldn't affect diffs
+*.cache linguist-generated=true
+*.log linguist-generated=true

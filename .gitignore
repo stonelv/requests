@@ -35,3 +35,11 @@ t2.py
 dist
 
 /.mypy_cache/
+
+# WebCache Explorer data and cache files (if used in examples/tests)
+# These should not be committed as they contain fetched web content
+data/
+!data/.gitkeep
+bench_urls.txt
+test_urls.txt
+*.cache
