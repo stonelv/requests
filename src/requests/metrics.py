@@ -35,13 +35,13 @@ class Stats:
         self._status_distribution: Dict[int, int] = {}
         self._latencies: List[float] = []
         self._timestamps: List[float] = []
-        self._lock: threading.Lock = threading.Lock()
+        self._lock: threading.RLock = threading.RLock()
 
     def record(self, status_code: int, latency: float, timestamp: Optional[float] = None) -> None:
         """Record a request's metrics.
 
         Args:
-            status_code: The HTTP status code of the response.
+            status_code: The HTTP status code of the response. Status code 0 indicates a failed/exception request.
             latency: The time taken to complete the request in seconds.
             timestamp: The timestamp of the request (defaults to current time if not provided).
         """
@@ -196,6 +196,9 @@ class MetricsAdapter(HTTPAdapter):
 
         Returns:
             The Response object from the underlying adapter.
+
+        Note:
+            If the request fails with an exception, it will be recorded with status code 0.
         """
         # Record start time
         start_time = time.time()
