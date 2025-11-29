@@ -110,29 +110,7 @@ class ResponseFormatter:
         if not use_color:
             return json_str
         
-        # 定义颜色代码
-        colors = {
-            'key': '\033[36m',     # 青色
-            'string': '\033[32m',  # 绿色
-            'number': '\033[33m',  # 黄色
-            'boolean': '\033[35m', # 洋红
-            'null': '\033[35m',    # 洋红
-            'reset': '\033[0m'     # 重置
-        }
-        
-        # 使用正则表达式添加颜色
-        
-        # 高亮键
-        json_str = re.sub(r'"(.*?)":', f'{colors["key"]}"\1":{colors["reset"]}', json_str)
-        
-        # 高亮字符串值
-        json_str = re.sub(r':\s*"(.*?)"', f': {colors["string"]}"\1"{colors["reset"]}', json_str)
-        
-        # 高亮数字
-        json_str = re.sub(r':\s*(-?\d+(?:\.\d+)?)', f': {colors["number"]}\1{colors["reset"]}', json_str)
-        
-        # 高亮布尔值和null
-        json_str = re.sub(r':\s*(true|false|null)', f': {colors["boolean"]}\1{colors["reset"]}', json_str, flags=re.IGNORECASE)
+
         
         return json_str
     
@@ -170,18 +148,8 @@ class ResponseFormatter:
         try:
             # 尝试 JSON 解析
             json_data = response.json()
-            # 递归处理 JSON 数据，将 '+' 替换为空格
-            def decode_plus(data):
-                if isinstance(data, dict):
-                    return {k: decode_plus(v) for k, v in data.items()}
-                elif isinstance(data, list):
-                    return [decode_plus(item) for item in data]
-                elif isinstance(data, str):
-                    return data.replace('+', ' ')
-                else:
-                    return data
-            json_data = decode_plus(json_data)
-            formatted_json = ResponseFormatter.format_json(json_data, use_color=not args.no_color)
+
+            formatted_json = ResponseFormatter.format_json(json_data, use_color=use_color)
             
             # 检查是否需要截断
             if len(formatted_json) > max_body_length:
@@ -379,19 +347,23 @@ def main() -> None:
             timeout=args.timeout
         )
 
-        # 检查HTTP响应状态码
-        try:
-            response.raise_for_status()
-        except HTTPError as e:
-            logging.error(f"HTTP错误: {e}")
+        # 打印响应信息
         
-        # 打印请求信息
-        colorize = ResponseFormatter.colorize if not args.no_color else lambda text, _: text
-        print("\n" + colorize("===== 请求信息 =====", "cyan"))
-        print(f"{colorize('时间戳:', 'yellow')} {timestamp}")
-        print(f"{colorize('方法:', 'yellow')} {args.method.upper()}")
-        print(f"{colorize('URL:', 'yellow')} {args.url}")
-        print(f"{colorize('超时时间:', 'yellow')} {args.timeout} 秒")
+        # 在 verbose 模式下打印请求头与请求体摘要
+        if args.verbose:
+            colorize = ResponseFormatter.colorize if not args.no_color else lambda text, _: text
+            if headers:
+                print("\n" + colorize("===== 请求头 =====", "cyan"))
+                for key, value in headers.items():
+                    print(f"{colorize(key + ':', 'yellow')} {value}")
+            
+            if data:
+                print("\n" + colorize("===== 请求体 =====", "cyan"))
+                if isinstance(data, dict):
+                    print(ResponseFormatter.format_json(data, use_color=not args.no_color))
+                else:
+                    print(data)
+
         
         # 打印响应信息
         print("\n" + ResponseFormatter.format_response(response, not args.no_color, args.max_body_length))
