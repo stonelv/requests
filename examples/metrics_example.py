@@ -4,6 +4,9 @@
 
 This example creates a requests Session with a MetricsAdapter, makes several
 requests to httpbin.org, and prints the collected metrics.
+
+Run this example with:
+  python examples/metrics_example.py
 """
 
 import requests
