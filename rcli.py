@@ -29,6 +29,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import requests
 from requests.exceptions import RequestException, Timeout, ConnectionError, HTTPError
+from requests.exceptions import InvalidURL
 
 
 class ANSIColors:
@@ -59,6 +60,19 @@ class ANSIColors:
     # 重置
     RESET = '\033[0m'
     
+    # 颜色开关
+    _no_color = False
+    
+    @classmethod
+    def disable_color(cls):
+        """禁用颜色输出"""
+        cls._no_color = True
+    
+    @classmethod
+    def enable_color(cls):
+        """启用颜色输出"""
+        cls._no_color = False
+    
     @classmethod
     def colorize(cls, text: str, color: str) -> str:
         """
@@ -69,8 +83,10 @@ class ANSIColors:
             color: 颜色代码
             
         Returns:
-            着色后的文本
+            着色后的文本（如果颜色被禁用则返回原文本）
         """
+        if cls._no_color:
+            return text
         return f"{color}{text}{cls.RESET}"
 
 
@@ -90,7 +106,7 @@ class SessionManager:
     def create_session(self) -> requests.Session:
         """
         创建新的会话，如果存在持久化会话则加载
-        
+
         Returns:
             requests.Session 对象
         """
@@ -99,9 +115,9 @@ class SessionManager:
         # 尝试加载已保存的 cookies
         if self.session_file.exists():
             try:
-                with open(self.session_file, 'rb') as f:
-                    cookies = pickle.load(f)
-                    session.cookies.update(cookies)
+                with open(self.session_file, 'r', encoding='utf-8') as f:
+                    cookies_dict = json.load(f)
+                    session.cookies.update(cookies_dict)
                 logging.info(f"已加载会话文件: {self.session_file}")
             except Exception as e:
                 logging.warning(f"加载会话文件失败: {e}")
@@ -117,8 +133,9 @@ class SessionManager:
             return
             
         try:
-            with open(self.session_file, 'wb') as f:
-                pickle.dump(self.session.cookies, f)
+            with open(self.session_file, 'w', encoding='utf-8') as f:
+                cookies_dict = self.session.cookies.get_dict()
+                json.dump(cookies_dict, f, ensure_ascii=False, indent=2)
             logging.info(f"会话已保存到: {self.session_file}")
         except Exception as e:
             logging.error(f"保存会话失败: {e}")
@@ -173,37 +190,36 @@ class JSONFormatter:
         """
         lines = json_str.split('\n')
         highlighted_lines = []
+        import re
         
         for line in lines:
             highlighted_line = line
             
-            # 高亮字符串值（双引号内的内容）
-            import re
-            # 匹配键
+            # 高亮 JSON 键（双引号后跟冒号）
             highlighted_line = re.sub(
                 r'("[^"]*"):\s*',
-                f'{ANSIColors.colorize("\\1", ANSIColors.CYAN)}: ',
+                lambda m: ANSIColors.colorize(m.group(1), ANSIColors.CYAN) + ": ",
                 highlighted_line
             )
             
-            # 匹配字符串值
+            # 高亮 JSON 字符串值
             highlighted_line = re.sub(
                 r':\s*("[^"]*")',
-                f': {ANSIColors.colorize("\\1", ANSIColors.GREEN)}',
+                lambda m: ": " + ANSIColors.colorize(m.group(1), ANSIColors.GREEN),
                 highlighted_line
             )
             
             # 高亮数字
             highlighted_line = re.sub(
                 r'\b(\d+(?:\.\d+)?)\b',
-                ANSIColors.colorize('\\1', ANSIColors.YELLOW),
+                lambda m: ANSIColors.colorize(m.group(1), ANSIColors.YELLOW),
                 highlighted_line
             )
             
             # 高亮布尔值和 null
             highlighted_line = re.sub(
                 r'\b(true|false|null)\b',
-                ANSIColors.colorize('\\1', ANSIColors.MAGENTA),
+                lambda m: ANSIColors.colorize(m.group(1), ANSIColors.MAGENTA),
                 highlighted_line
             )
             
@@ -256,8 +272,10 @@ class HTTPClient:
         request_data = None
         if data:
             try:
-                request_data = json.loads(data) if data.startswith('{') or data.startswith('[') else data
+                # 先尝试解析为 JSON
+                request_data = json.loads(data)
             except json.JSONDecodeError:
+                # 解析失败则作为纯文本处理
                 request_data = data
         
         # 设置默认请求头
@@ -297,6 +315,8 @@ class HTTPClient:
             raise RequestException(f"连接错误: {e}")
         except HTTPError as e:
             raise RequestException(f"HTTP 错误: {e}")
+        except InvalidURL as e:
+            raise RequestException(f"无效的 URL: {e}")
         except RequestException as e:
             raise RequestException(f"请求异常: {e}")
         except Exception as e:
@@ -306,9 +326,14 @@ class HTTPClient:
 class ResponseFormatter:
     """响应格式化器，负责美化和显示 HTTP 响应"""
     
-    def __init__(self):
-        """初始化响应格式化器"""
+    def __init__(self, max_body_length: int = 1000):
+        """初始化响应格式化器
+        
+        Args:
+            max_body_length: 响应体最大显示长度（字符数）
+        """
         self.json_formatter = JSONFormatter()
+        self.max_body_length = max_body_length
     
     def format_request_info(self, method: str, url: str, headers: Dict[str, str], 
                            data: Optional[Any] = None) -> str:
@@ -375,6 +400,26 @@ class ResponseFormatter:
         lines.append(f"{ANSIColors.colorize('Time Elapsed:', ANSIColors.YELLOW)} {elapsed_time:.3f}s")
         lines.append(f"{ANSIColors.colorize('Encoding:', ANSIColors.YELLOW)} {response.encoding or 'None'}")
         
+        # 错误摘要（非 2xx/3xx 响应）
+        if response.status_code >= 400:
+            lines.append(f"\n{ANSIColors.colorize('⚠️  错误摘要:', ANSIColors.RED)}")
+            lines.append(f"  {ANSIColors.colorize('状态码:', ANSIColors.YELLOW)} {response.status_code}")
+            lines.append(f"  {ANSIColors.colorize('原因:', ANSIColors.YELLOW)} {response.reason}")
+            
+            # 根据状态码提供建议
+            if response.status_code == 404:
+                lines.append(f"  {ANSIColors.colorize('建议:', ANSIColors.CYAN)} 检查 URL 是否正确")
+            elif response.status_code == 401:
+                lines.append(f"  {ANSIColors.colorize('建议:', ANSIColors.CYAN)} 检查认证信息")
+            elif response.status_code == 403:
+                lines.append(f"  {ANSIColors.colorize('建议:', ANSIColors.CYAN)} 检查访问权限")
+            elif response.status_code == 500:
+                lines.append(f"  {ANSIColors.colorize('建议:', ANSIColors.CYAN)} 服务器内部错误，稍后重试")
+            elif response.status_code >= 500:
+                lines.append(f"  {ANSIColors.colorize('建议:', ANSIColors.CYAN)} 服务器错误，请稍后重试")
+            elif response.status_code >= 400:
+                lines.append(f"  {ANSIColors.colorize('建议:', ANSIColors.CYAN)} 检查请求参数和数据格式")
+        
         # 响应头
         lines.append(f"\n{ANSIColors.colorize('Headers:', ANSIColors.YELLOW)}")
         for key, value in response.headers.items():
@@ -392,8 +437,8 @@ class ResponseFormatter:
             except ValueError:
                 # 非 JSON 内容
                 content = response.text
-                if len(content) > 1000:
-                    content = content[:1000] + "...\n[内容过长，已截断]"
+                if len(content) > self.max_body_length:
+                    content = content[:self.max_body_length] + f"...\n[内容已截断，显示前 {self.max_body_length} 个字符]"
                 lines.append(content)
         
         return '\n'.join(lines)
@@ -407,7 +452,7 @@ class RCLI:
         self.setup_logging()
         self.session_manager = SessionManager()
         self.http_client = HTTPClient(self.session_manager)
-        self.response_formatter = ResponseFormatter()
+        self.response_formatter = None  # 将在 run 方法中初始化
     
     def setup_logging(self) -> None:
         """
@@ -488,6 +533,21 @@ class RCLI:
             help='显示详细输出'
         )
         
+        # 禁用颜色输出
+        parser.add_argument(
+            '--no-color',
+            action='store_true',
+            help='禁用彩色输出'
+        )
+        
+        # 响应体最大长度
+        parser.add_argument(
+            '--max-body-length',
+            type=int,
+            default=1000,
+            help='响应体最大显示长度（字符数）(默认: 1000)'
+        )
+        
         return parser.parse_args()
     
     def parse_headers(self, header_list: Optional[List[str]]) -> Dict[str, str]:
@@ -523,6 +583,19 @@ class RCLI:
         """
         try:
             args = self.parse_arguments()
+            
+            # 处理颜色开关
+            if args.no_color:
+                ANSIColors.disable_color()
+            
+            # 初始化响应格式化器
+            self.response_formatter = ResponseFormatter(max_body_length=args.max_body_length)
+
+            # 设置控制台编码为 UTF-8（Windows 兼容性）
+            if sys.platform == 'win32':
+                import io
+                sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+                sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
             
             # 处理清除会话请求
             if args.clear_session:
