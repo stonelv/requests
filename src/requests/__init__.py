@@ -162,6 +162,7 @@ from .__version__ import (
     __version__,
 )
 from .api import delete, get, head, options, patch, post, put, request
+from .metrics import MetricsAdapter, Stats, add_metrics
 from .exceptions import (
     ConnectionError,
     ConnectTimeout,
@@ -182,3 +183,45 @@ logging.getLogger(__name__).addHandler(NullHandler())
 
 # FileModeWarnings go off per the default.
 warnings.simplefilter("default", FileModeWarning, append=True)
+
+__all__ = [
+    "delete",
+    "get",
+    "head",
+    "options",
+    "patch",
+    "post",
+    "put",
+    "request",
+    "MetricsAdapter",
+    "Stats",
+    "add_metrics",
+    "ConnectionError",
+    "ConnectTimeout",
+    "FileModeWarning",
+    "HTTPError",
+    "JSONDecodeError",
+    "ReadTimeout",
+    "RequestException",
+    "Timeout",
+    "TooManyRedirects",
+    "URLRequired",
+    "PreparedRequest",
+    "Request",
+    "Response",
+    "Session",
+    "session",
+    "codes",
+    "packages",
+    "utils",
+    "__author__",
+    "__author_email__",
+    "__build__",
+    "__cake__",
+    "__copyright__",
+    "__description__",
+    "__license__",
+    "__title__",
+    "__url__",
+    "__version__",
+]
