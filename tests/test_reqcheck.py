@@ -177,6 +177,75 @@ class TestDownloader:
         # URL with query params
         filename = downloader.get_filename_from_url("https://example.com/file.txt?param=1")
         assert filename == "file.txt"
+    
+    @patch("requests.Session.get")
+    def test_download_stream_with_progress(self, mock_get):
+        """Test stream download with progress bar"""
+        # Mock response
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_response.headers = {"Content-Length": "10240"}
+        mock_response.iter_content = Mock(return_value=[b"x" * 8192, b"x" * 2048])
+        mock_get.return_value = mock_response
+        
+        downloader = Downloader({
+            "download_dir": "downloads",
+            "timeout": 10.0,
+            "max_retries": 3,
+            "retry_delay": 1.0,
+            "proxy": None,
+            "headers": None,
+            "cookies": None
+        })
+        
+        result = downloader.download("https://example.com/file.txt", show_progress=True)
+        
+        assert result["success"] is True
+        assert result["content_length"] == 10240
+        assert result["error"] is None
+        
+        # Verify file was created
+        output_path = Path(result["filename"])
+        assert output_path.exists()
+        
+        # Verify file size
+        assert output_path.stat().st_size == 10240
+        
+        # Cleanup
+        output_path.unlink()
+        
+    @patch("requests.Session.get")
+    def test_download_stream_without_progress(self, mock_get):
+        """Test stream download without progress bar"""
+        # Mock response
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_response.headers = {}
+        mock_response.iter_content = Mock(return_value=[b"x" * 1024])
+        mock_get.return_value = mock_response
+        
+        downloader = Downloader({
+            "download_dir": "downloads",
+            "timeout": 10.0,
+            "max_retries": 3,
+            "retry_delay": 1.0,
+            "proxy": None,
+            "headers": None,
+            "cookies": None
+        })
+        
+        result = downloader.download("https://example.com/file.txt", show_progress=False)
+        
+        assert result["success"] is True
+        assert result["content_length"] is None
+        assert result["error"] is None
+        
+        # Verify file was created
+        output_path = Path(result["filename"])
+        assert output_path.exists()
+        
+        # Cleanup
+        output_path.unlink()
 
 
 class TestRunner:
@@ -214,6 +283,56 @@ class TestRunner:
         
         # Cleanup
         tmp_path.unlink()
+    
+    def test_print_summary_average_time(self):
+        """Test average time calculation in print_summary"""
+        from reqcheck.runner import print_summary
+        import io
+        import sys
+        
+        # Test case 1: All results have elapsed time
+        results1 = [
+            {"url": "https://example.com", "elapsed": 0.5, "status_code": 200, "error": None, "timed_out": False, "redirected": False},
+            {"url": "https://google.com", "elapsed": 1.0, "status_code": 200, "error": None, "timed_out": False, "redirected": False},
+            {"url": "https://github.com", "elapsed": 0.75, "status_code": 200, "error": None, "timed_out": False, "redirected": False}
+        ]
+        
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        print_summary(results1)
+        sys.stdout = sys.__stdout__
+        output1 = captured_output.getvalue()
+        
+        assert "Average response time: 0.7500s" in output1
+        
+        # Test case 2: Some results have elapsed time
+        results2 = [
+            {"url": "https://example.com", "elapsed": 0.5, "status_code": 200, "error": None, "timed_out": False, "redirected": False},
+            {"url": "https://google.com", "elapsed": None, "status_code": None, "error": "Connection error", "timed_out": False, "redirected": False},
+            {"url": "https://github.com", "elapsed": 0.75, "status_code": 200, "error": None, "timed_out": False, "redirected": False}
+        ]
+        
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        print_summary(results2)
+        sys.stdout = sys.__stdout__
+        output2 = captured_output.getvalue()
+        
+        assert "Average response time: 0.6250s" in output2
+        
+        # Test case 3: No results have elapsed time
+        results3 = [
+            {"url": "https://example.com", "elapsed": None, "status_code": None, "error": "Connection error", "timed_out": False, "redirected": False},
+            {"url": "https://google.com", "elapsed": None, "status_code": None, "error": "Timeout", "timed_out": True, "redirected": False}
+        ]
+        
+        captured_output = io.StringIO()
+        sys.stdout = captured_output
+        print_summary(results3)
+        sys.stdout = sys.__stdout__
+        output3 = captured_output.getvalue()
+        
+        assert "Average response time: N/A" in output3
 
 
 if __name__ == "__main__":

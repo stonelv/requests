@@ -140,8 +140,12 @@ def print_summary(results: List[Dict[str, Any]]) -> None:
     print(f"Redirected: {redirected} ({redirected/total*100:.1f}%)")
     
     if results:
-        avg_time = sum(r["elapsed"] for r in results if r["elapsed"] is not None) / len(results)
-        print(f"Average response time: {avg_time:.4f}s")
+        valid_elapsed = [r["elapsed"] for r in results if r["elapsed"] is not None]
+        if valid_elapsed:
+            avg_time = sum(valid_elapsed) / len(valid_elapsed)
+            print(f"Average response time: {avg_time:.4f}s")
+        else:
+            print(f"Average response time: N/A")
 
 
 def print_download_summary(results: List[Dict[str, Any]]) -> None:

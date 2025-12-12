@@ -1,6 +1,7 @@
 """Configuration management"""
 
 import json
+import yaml
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Optional
@@ -29,13 +30,23 @@ class Config:
         """Create Config from command-line arguments"""
         headers = None
         if args.headers:
-            with open(args.headers, "r") as f:
-                headers = json.load(f)
+            headers_file = Path(args.headers)
+            if headers_file.suffix in [".yaml", ".yml"]:
+                with open(headers_file, "r") as f:
+                    headers = yaml.safe_load(f)
+            else:
+                with open(headers_file, "r") as f:
+                    headers = json.load(f)
         
         cookies = None
         if args.cookies:
-            with open(args.cookies, "r") as f:
-                cookies = json.load(f)
+            cookies_file = Path(args.cookies)
+            if cookies_file.suffix in [".yaml", ".yml"]:
+                with open(cookies_file, "r") as f:
+                    cookies = yaml.safe_load(f)
+            else:
+                with open(cookies_file, "r") as f:
+                    cookies = json.load(f)
         
         return cls(
             urls_file=Path(args.urls),
