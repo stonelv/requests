@@ -1,0 +1,14 @@
+{
+  "input_file": "examples/urls.txt",
+  "output_file": "results.json",
+  "output_format": "json",
+  "method": "GET",
+  "timeout": 10,
+  "concurrency": 5,
+  "max_retries": 3,
+  "backoff_factor": 0.5,
+  "download": false,
+  "download_dir": "./downloads",
+  "verbose": false,
+  "quiet": false
+}
