@@ -1,0 +1,12 @@
+# Example URLs file
+# Lines starting with # are comments
+# One URL per line
+https://www.example.com
+https://www.google.com
+https://github.com
+https://pypi.org
+https://nonexistent.example.invalid
+https://httpstat.us/200
+https://httpstat.us/404
+https://httpstat.us/500
+https://httpstat.us/302
