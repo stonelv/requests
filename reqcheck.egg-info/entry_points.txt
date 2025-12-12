@@ -1,0 +1,2 @@
+[console_scripts]
+reqcheck = reqcheck.cli:main

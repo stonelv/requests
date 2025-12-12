@@ -1,0 +1,11 @@
+# 示例URL列表
+# 行首带#的为注释
+https://www.google.com
+https://www.github.com
+https://www.baidu.com
+https://www.python.org
+https://httpbin.org/status/200
+https://httpbin.org/status/404
+https://httpbin.org/status/500
+https://httpbin.org/redirect/1
+https://httpbin.org/delay/1
