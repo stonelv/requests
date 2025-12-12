@@ -1,5 +1,6 @@
 import os
 import json
+import yaml
 import tempfile
 import unittest
 from unittest.mock import patch, MagicMock
@@ -30,6 +31,28 @@ class TestConfig(unittest.TestCase):
         config.method = "INVALID"
         with self.assertRaises(ValueError):
             config.validate()
+    
+    def test_config_from_json(self):
+        """测试从JSON配置文件加载"""
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+            json.dump({"method": "POST", "timeout": 20}, f)
+        
+        config = Config.from_file(f.name)
+        self.assertEqual(config.method, "POST")
+        self.assertEqual(config.timeout, 20)
+        
+        os.unlink(f.name)
+    
+    def test_config_from_yaml(self):
+        """测试从YAML配置文件加载"""
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.yml') as f:
+            yaml.dump({"method": "POST", "timeout": 20}, f)
+        
+        config = Config.from_file(f.name)
+        self.assertEqual(config.method, "POST")
+        self.assertEqual(config.timeout, 20)
+        
+        os.unlink(f.name)
 
 class TestRequestor(unittest.TestCase):
     """请求模块测试"""
@@ -117,13 +140,46 @@ class TestExporters(unittest.TestCase):
         config = Config(output_file="test.csv")
         exporter = CSVExporter(config)
         
-        results = [{"url": "https://example.com", "status_code": 200}]
+        results = [{"url": "https://example.com", "status_code": 200, "response_time": 0.5, "redirected": False, "timeout": False, "content_length": 1024, "headers": {"Server": "nginx"}}]
         
         with tempfile.TemporaryDirectory() as tmpdir:
             config.output_file = os.path.join(tmpdir, "test.csv")
             exporter.export(results)
             
             self.assertTrue(os.path.exists(config.output_file))
+            with open(config.output_file, 'r') as f:
+                content = f.read()
+                self.assertIn('url', content)
+                self.assertIn('final_url', content)
+                self.assertIn('status_code', content)
+                self.assertIn('elapsed_ms', content)
+                self.assertIn('redirected', content)
+                self.assertIn('timed_out', content)
+                self.assertIn('content_length', content)
+                self.assertIn('headers_summary', content)
+    
+    def test_json_export_fields(self):
+        """测试JSON导出字段"""
+        config = Config(output_file="test.json")
+        exporter = JSONExporter(config)
+        
+        results = [{"url": "https://example.com", "status_code": 200, "response_time": 0.5, "redirected": False, "timeout": False, "content_length": 1024, "headers": {"Server": "nginx"}}]
+        
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config.output_file = os.path.join(tmpdir, "test.json")
+            exporter.export(results)
+            
+            self.assertTrue(os.path.exists(config.output_file))
+            with open(config.output_file, 'r') as f:
+                data = json.load(f)
+                self.assertEqual(len(data), 1)
+                self.assertEqual(data[0]['url'], 'https://example.com')
+                self.assertEqual(data[0]['elapsed_ms'], 500)
+                self.assertEqual(data[0]['status_code'], 200)
+                self.assertEqual(data[0]['redirected'], False)
+                self.assertEqual(data[0]['timed_out'], False)
+                self.assertEqual(data[0]['content_length'], 1024)
+                self.assertEqual(data[0]['headers_summary'], 'Server: nginx')
 
 class TestRunner(unittest.TestCase):
     """运行器模块测试"""

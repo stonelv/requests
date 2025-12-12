@@ -19,9 +19,26 @@ class JSONExporter(Exporter):
     
     def export(self, results: List[Dict[str, Any]]) -> None:
         """将结果导出为JSON文件"""
+        # 统一JSON导出格式
+        formatted_results = []
+        for result in results:
+            headers = result.get('headers', {})
+            headers_summary = '; '.join([f'{k}: {v}' for k, v in headers.items()])
+            formatted_result = {
+                'url': result.get('url', ''),
+                'final_url': result.get('final_url', ''),
+                'status_code': result.get('status_code', ''),
+                'elapsed_ms': round(result.get('response_time', 0.0) * 1000),
+                'redirected': result.get('redirected', False),
+                'timed_out': result.get('timeout', False),
+                'content_length': result.get('content_length', 0),
+                'headers_summary': headers_summary
+            }
+            formatted_results.append(formatted_result)
+        
         if not self.config.output_file:
             # 如果没有指定输出文件，直接打印到控制台
-            print(json.dumps(results, indent=2, ensure_ascii=False))
+            print(json.dumps(formatted_results, indent=2, ensure_ascii=False))
             return
         
         # 确保输出目录存在
@@ -30,7 +47,7 @@ class JSONExporter(Exporter):
             os.makedirs(output_dir, exist_ok=True)
         
         with open(self.config.output_file, 'w', encoding='utf-8') as f:
-            json.dump(results, f, indent=2, ensure_ascii=False)
+            json.dump(formatted_results, f, indent=2, ensure_ascii=False)
 
 class CSVExporter(Exporter):
     """CSV格式导出器"""
@@ -42,10 +59,8 @@ class CSVExporter(Exporter):
         
         # 确定CSV字段
         csv_fields = [
-            'url', 'final_url', 'status_code', 'error', 
-            'response_time', 'redirected', 'timeout',
-            'content_length', 'server', 'content_type',
-            'last_modified', 'etag'
+            'url', 'final_url', 'status_code', 'elapsed_ms', 
+            'redirected', 'timed_out', 'content_length', 'headers_summary'
         ]
         
         if not self.config.output_file:
@@ -71,19 +86,16 @@ class CSVExporter(Exporter):
     def _format_csv_row(self, result: Dict[str, Any]) -> Dict[str, Any]:
         """格式化CSV行"""
         headers = result.get('headers', {})
+        headers_summary = '; '.join([f'{k}: {v}' for k, v in headers.items()])
         return {
             'url': result.get('url', ''),
             'final_url': result.get('final_url', ''),
             'status_code': result.get('status_code', ''),
-            'error': result.get('error', ''),
-            'response_time': round(result.get('response_time', 0.0), 3),
+            'elapsed_ms': round(result.get('response_time', 0.0) * 1000),
             'redirected': result.get('redirected', False),
-            'timeout': result.get('timeout', False),
+            'timed_out': result.get('timeout', False),
             'content_length': result.get('content_length', 0),
-            'server': headers.get('server', ''),
-            'content_type': headers.get('content_type', ''),
-            'last_modified': headers.get('last_modified', ''),
-            'etag': headers.get('etag', '')
+            'headers_summary': headers_summary
         }
 
 def get_exporter(config: Config) -> Exporter:

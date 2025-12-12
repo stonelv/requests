@@ -1,5 +1,6 @@
 import os
 import json
+import yaml
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 from dotenv import load_dotenv
@@ -45,9 +46,12 @@ class Config:
     
     @classmethod
     def from_file(cls, config_file: str) -> 'Config':
-        """从JSON配置文件加载配置"""
+        """从JSON或YAML配置文件加载配置"""
         with open(config_file, 'r') as f:
-            config_data = json.load(f)
+            if config_file.endswith('.yml') or config_file.endswith('.yaml'):
+                config_data = yaml.safe_load(f)
+            else:
+                config_data = json.load(f)
         return cls(**config_data)
     
     def merge(self, other: 'Config') -> None:

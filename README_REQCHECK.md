@@ -96,7 +96,9 @@ Options:
 
 ## 配置文件
 
-可以使用JSON配置文件来保存常用配置：
+可以使用JSON或YAML配置文件来保存常用配置：
+
+### JSON格式
 
 ```json
 {
@@ -115,7 +117,36 @@ Options:
 }
 ```
 
+### YAML格式
+
+```yaml
+input_file: "examples/urls.txt"
+output_file: "results.json"
+output_format: "json"
+method: "GET"
+timeout: 10
+concurrency: 5
+max_retries: 3
+backoff_factor: 0.5
+download: false
+download_dir: "./downloads"
+verbose: false
+quiet: false
+```
+
 ## 结果格式
+
+### 统一导出字段
+
+所有导出格式（JSON和CSV）都包含以下字段：
+- url: 原始URL
+- final_url: 最终重定向后的URL
+- status_code: HTTP状态码
+- elapsed_ms: 响应时间（毫秒）
+- redirected: 是否重定向
+- timed_out: 是否超时
+- content_length: 内容长度
+- headers_summary: 响应头摘要（分号分隔的键值对）
 
 ### JSON格式
 
@@ -125,36 +156,26 @@ Options:
     "url": "https://example.com",
     "final_url": "https://example.com",
     "status_code": 200,
-    "error": null,
-    "response_time": 0.5,
+    "elapsed_ms": 500,
     "redirected": false,
-    "timeout": false,
+    "timed_out": false,
     "content_length": 1024,
-    "headers": {
-      "server": "nginx",
-      "content_type": "text/html",
-      "last_modified": "Wed, 21 Oct 2015 07:28:00 GMT",
-      "etag": "\"3147526947\""
-    }
+    "headers_summary": "server: nginx; content_type: text/html; last_modified: Wed, 21 Oct 2015 07:28:00 GMT; etag: \"3147526947\""
   }
 ]
 ```
 
 ### CSV格式
 
-CSV格式包含以下字段：
+CSV格式包含与JSON格式相同的字段：
 - url: 原始URL
 - final_url: 最终重定向后的URL
 - status_code: HTTP状态码
-- error: 错误信息（如果有）
-- response_time: 响应时间（秒）
+- elapsed_ms: 响应时间（毫秒）
 - redirected: 是否重定向
-- timeout: 是否超时
+- timed_out: 是否超时
 - content_length: 内容长度
-- server: 服务器信息
-- content_type: 内容类型
-- last_modified: 最后修改时间
-- etag: ETag
+- headers_summary: 响应头摘要
 
 ## 示例
 
