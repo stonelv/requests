@@ -1,0 +1,10 @@
+url,final_url,status_code,elapsed,redirected,timed_out,content_length,error
+https://www.google.com,https://www.google.com/,200,0.5273,False,False,,
+https://github.com,https://github.com/,200,0.8929,False,False,,
+https://pypi.org,https://pypi.org/,200,5.4961,False,False,5519,
+https://www.example.com,https://www.example.com/,200,5.5094,False,False,,
+https://httpstat.us/200,,,29.3954,False,False,,"HTTPSConnectionPool(host='httpstat.us', port=443): Max retries exceeded with url: /200 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))"
+https://httpstat.us/302,,,29.4089,False,False,,"HTTPSConnectionPool(host='httpstat.us', port=443): Max retries exceeded with url: /302 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))"
+https://httpstat.us/500,,,29.4137,False,False,,"HTTPSConnectionPool(host='httpstat.us', port=443): Max retries exceeded with url: /500 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))"
+https://httpstat.us/404,,,29.5148,False,False,,"HTTPSConnectionPool(host='httpstat.us', port=443): Max retries exceeded with url: /404 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))"
+https://nonexistent.example.invalid,,,30.7466,False,False,,"HTTPSConnectionPool(host='nonexistent.example.invalid', port=443): Max retries exceeded with url: / (Caused by SSLError(SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1129)')))"
