@@ -1,0 +1,9 @@
+# Example URLs file
+# Lines starting with # are comments
+# Empty lines are ignored
+
+http://example.com
+http://google.com
+http://github.com
+http://reddit.com
+http://stackoverflow.com
