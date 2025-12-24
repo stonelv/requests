@@ -1,0 +1,11 @@
+url,status_code,final_url,duration,redirected,timed_out,content_length,headers,error,retries
+https://www.sina.com.cn,200,https://www.sina.com.cn,0.062374114990234375,False,False,114133,"{""Server"": ""Tengine"", ""Content-Type"": ""text/html"", ""Date"": ""Wed, 24 Dec 2025 02:12:12 GMT"", ""Cache-Control"": ""max-age=60""}",,0
+https://www.taobao.com,200,https://www.taobao.com,0.06868290901184082,False,False,,"{""Server"": ""Tengine"", ""Content-Type"": ""text/html; charset=utf-8"", ""Date"": ""Wed, 24 Dec 2025 02:10:41 GMT"", ""Cache-Control"": ""max-age=0, s-maxage=138""}",,0
+https://www.baidu.com,200,https://www.baidu.com,0.07147431373596191,False,False,227,"{""Cache-Control"": ""no-cache"", ""Content-Type"": ""text/html"", ""Date"": ""Wed, 24 Dec 2025 02:12:29 GMT"", ""Server"": ""BWS/1.1""}",,0
+https://www.163.com,200,https://www.163.com,0.07568526268005371,False,False,54193,"{""Server"": ""Tengine"", ""Content-Type"": ""text/html; charset=utf-8"", ""Date"": ""Wed, 24 Dec 2025 02:12:16 GMT"", ""Cache-Control"": ""no-cache,no-store,private""}",,0
+https://www.qq.com,200,https://www.qq.com,0.08121800422668457,False,False,24495,"{""Date"": ""Wed, 24 Dec 2025 02:12:29 GMT"", ""Content-Type"": ""text/html; charset=utf-8"", ""Server"": ""tRPC-Gateway""}",,0
+https://www.sohu.com,200,https://www.sohu.com,0.12495803833007812,False,False,50992,"{""Date"": ""Wed, 24 Dec 2025 02:11:27 GMT"", ""Content-Type"": ""text/html;charset=utf-8"", ""Server"": ""openresty"", ""Cache-Control"": ""max-age=60""}",,0
+https://www.bing.com,200,https://cn.bing.com/,0.2198648452758789,True,False,7583,"{""Cache-Control"": ""private"", ""Content-Type"": ""text/html; charset=utf-8"", ""Date"": ""Wed, 24 Dec 2025 02:12:28 GMT""}",,0
+https://www.github.com,200,https://github.com/,0.9607927799224854,True,False,,"{""Date"": ""Wed, 24 Dec 2025 02:12:24 GMT"", ""Content-Type"": ""text/html; charset=utf-8"", ""Cache-Control"": ""max-age=0, private, must-revalidate"", ""Server"": ""github.com""}",,0
+https://www.python.org,200,https://www.python.org,2.9115421772003174,False,False,49571,"{""Content-Type"": ""text/html; charset=utf-8"", ""Date"": ""Wed, 24 Dec 2025 02:12:32 GMT""}",,0
+https://www.google.com,,,0.0,False,True,,{},Timeout,0

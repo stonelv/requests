@@ -1,0 +1,18 @@
+{
+    "input_file": "urls.txt",
+    "output_file": "results.csv",
+    "output_format": "csv",
+    "concurrent": 20,
+    "timeout": 10,
+    "retries": 3,
+    "backoff_factor": 0.5,
+    "proxy": null,
+    "headers": {
+        "Accept-Language": "zh-CN,zh;q=0.9"
+    },
+    "user_agent": "reqcheck/1.0",
+    "download_mode": false,
+    "download_dir": "downloads",
+    "verbose": true,
+    "debug": false
+}
