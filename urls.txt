@@ -1,0 +1,12 @@
+# 示例URL列表
+# 注释行以#开头
+https://www.google.com
+https://www.github.com
+https://www.python.org
+https://www.baidu.com
+https://www.bing.com
+https://www.qq.com
+https://www.163.com
+https://www.sohu.com
+https://www.sina.com.cn
+https://www.taobao.com
